@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec ssh -c 3des-cbc -m hmac-md5 -o "ControlMaster no" "$@"

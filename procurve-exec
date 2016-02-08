@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# Script to login to ProCurve Switches with the apropriate cypher and MAC.
+
+# Command that gets run: ssh -c 3des-cbc -m hmac-md5 -l root -o "ControlMaster no" $1
+
+HOST="$1"
+shift
+CMD="$@"
+
+if [ "$HPPROCURVEPASS" == "" ]; then
+	echo "Please set \$HPPROCURVEPASS to your password of the ProCurve."
+	exit 1
+fi
+
+PASS="$HPPROCURVEPASS"
+
+export HOST
+export PASS
+export CMD
+
+expect <<HERE |
+set host $::env(HOST)
+set passwd $::env(PASS)
+set cmd $::env(CMD)
+
+# Vars
+
+# Set to 1 to show output
+set show_output 0
+
+spawn -noecho ssh -c 3des-cbc -m hmac-md5 -o "ControlMaster no" \$host
+
+log_user \$show_output
+
+expect -e "password:" {
+	send "\$passwd\n"
+}
+
+expect -e "Press any key to continue"
+send "\n"
+expect_background -e "\x1b\[x1b\[47;9H"
+expect -re {[#\>]}
+if { \$cmd != "" } {
+	send "\n"
+	expect -re {[#\>] }
+	send "[join \$cmd]\n"
+	log_user 1
+
+	expect -re {[#\>] }
+	log_user \$show_output
+	send "exit\ny\nexit\ny\n"
+} else {
+	interact
+}
+HERE
+sed -e 's/\x1b\[....//g' -e 's/\r?\n/\n/g' -e 's/.*[#\>]//g' -e '1 s/.*\;1HHrH//g'
